@@ -3,7 +3,6 @@ import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
-from temp_data import TEMP_LEVELS, TEMP_SECTIONS, TEMP_LESSONS
 
 logger = logging.getLogger(__name__)
 
@@ -11,71 +10,56 @@ class SupabaseClient:
     def __init__(self):
         self.db_url = os.environ.get("DATABASE_URL", "")
         self.conn = None
-        self.use_temp_data = False
-        # Копии для редактирования во временном режиме
-        self.temp_levels = []
-        self.temp_sections = []
-        self.temp_lessons = []
         self.next_id = 100  # Начальный ID для новых записей
-        if self.db_url:
+        self._ensure_connection()
+
+    def _ensure_connection(self):
+        if self.conn is not None:
             try:
-                # Parse URL to add SSL parameters properly
-                import urllib.parse
-                parsed = urllib.parse.urlparse(self.db_url)
-                
-                # Construct connection parameters manually
-                connection_params = {
-                    'host': parsed.hostname,
-                    'port': parsed.port or 5432,
-                    'database': parsed.path.lstrip('/') or 'postgres',
-                    'user': parsed.username,
-                    'password': parsed.password,
-                    'cursor_factory': RealDictCursor,
-                    'sslmode': 'require',
-                    'connect_timeout': 15
-                }
-                
-                self.conn = psycopg2.connect(**connection_params)
-                self.conn.autocommit = True
-                logger.info("Database connected successfully")
-                self._create_tables()
-            except Exception as e:
-                logger.error(f"Failed to connect to database: {e}")
-                # Try with DSN string and different SSL settings
-                try:
-                    if '?' in self.db_url:
-                        dsn = self.db_url
-                    else:
-                        dsn = self.db_url + '?sslmode=require'
-                    
-                    self.conn = psycopg2.connect(
-                        dsn=dsn,
-                        cursor_factory=RealDictCursor,
-                        connect_timeout=15
-                    )
-                    self.conn.autocommit = True
-                    logger.info("Database connected successfully (DSN method)")
-                    self._create_tables()
-                except Exception as e2:
-                    logger.error(f"DSN connection also failed: {e2}")
-                    logger.info("Switching to temporary data mode")
-                    self.use_temp_data = True
-                    self._init_temp_data()
-        else:
+                # Проверяем, открыто ли соединение
+                self.conn.cursor().execute('SELECT 1')
+                return
+            except Exception:
+                self.conn = None
+        if not self.db_url:
             logger.warning("DATABASE_URL not found in environment variables")
-            logger.info("Using temporary data mode")
-            self.use_temp_data = True
-            self._init_temp_data()
-    
-    def _init_temp_data(self):
-        """Initialize editable copies of temporary data"""
-        import copy
-        self.temp_levels = copy.deepcopy(TEMP_LEVELS)
-        self.temp_sections = copy.deepcopy(TEMP_SECTIONS)
-        self.temp_lessons = copy.deepcopy(TEMP_LESSONS)
+            return
+        try:
+            import urllib.parse
+            parsed = urllib.parse.urlparse(self.db_url)
+            connection_params = {
+                'host': parsed.hostname,
+                'port': parsed.port or 5432,
+                'database': parsed.path.lstrip('/') or 'postgres',
+                'user': parsed.username,
+                'password': parsed.password,
+                'cursor_factory': RealDictCursor,
+                'sslmode': 'require',
+                'connect_timeout': 15
+            }
+            self.conn = psycopg2.connect(**connection_params)
+            self.conn.autocommit = True
+            logger.info("Database connected successfully (reconnect)")
+        except Exception as e:
+            logger.error(f"Failed to connect to database: {e}")
+            try:
+                if '?' in self.db_url:
+                    dsn = self.db_url
+                else:
+                    dsn = self.db_url + '?sslmode=require'
+                self.conn = psycopg2.connect(
+                    dsn=dsn,
+                    cursor_factory=RealDictCursor,
+                    connect_timeout=15
+                )
+                self.conn.autocommit = True
+                logger.info("Database connected successfully (DSN method reconnect)")
+            except Exception as e2:
+                logger.error(f"DSN connection also failed: {e2}")
+                self.conn = None
 
     def _create_tables(self):
-        """Create tables if they don't exist"""
+        self._ensure_connection()
         if not self.conn:
             return
         
@@ -124,12 +108,12 @@ class SupabaseClient:
             logger.error(f"Error creating tables: {e}")
 
     def is_connected(self):
+        self._ensure_connection()
         return self.conn is not None
 
     # Levels operations
     def get_all_levels(self):
-        if self.use_temp_data:
-            return self.temp_levels
+        self._ensure_connection()
         if not self.conn:
             return []
         try:
@@ -143,15 +127,7 @@ class SupabaseClient:
             return []
 
     def create_level(self, title, order_index):
-        if self.use_temp_data:
-            new_level = {
-                "id": self.next_id,
-                "title": title,
-                "order_index": order_index
-            }
-            self.temp_levels.append(new_level)
-            self.next_id += 1
-            return new_level
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -168,12 +144,7 @@ class SupabaseClient:
             return None
 
     def update_level(self, level_id, title):
-        if self.use_temp_data:
-            for level in self.temp_levels:
-                if level['id'] == level_id:
-                    level['title'] = title
-                    return level
-            return None
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -190,15 +161,7 @@ class SupabaseClient:
             return None
 
     def delete_level(self, level_id):
-        if self.use_temp_data:
-            # Удаляем уровень
-            self.temp_levels = [l for l in self.temp_levels if l['id'] != level_id]
-            # Удаляем связанные разделы
-            self.temp_sections = [s for s in self.temp_sections if s['level_id'] != level_id]
-            # Удаляем связанные уроки
-            section_ids = [s['id'] for s in self.temp_sections if s['level_id'] == level_id]
-            self.temp_lessons = [l for l in self.temp_lessons if l['section_id'] not in section_ids]
-            return True
+        self._ensure_connection()
         if not self.conn:
             return False
         try:
@@ -212,8 +175,7 @@ class SupabaseClient:
 
     # Sections operations
     def get_sections_by_level(self, level_id):
-        if self.use_temp_data:
-            return [s for s in self.temp_sections if s['level_id'] == level_id]
+        self._ensure_connection()
         if not self.conn:
             return []
         try:
@@ -227,16 +189,7 @@ class SupabaseClient:
             return []
 
     def create_section(self, level_id, title, order_index):
-        if self.use_temp_data:
-            new_section = {
-                "id": self.next_id,
-                "level_id": level_id,
-                "title": title,
-                "order_index": order_index
-            }
-            self.temp_sections.append(new_section)
-            self.next_id += 1
-            return new_section
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -253,6 +206,7 @@ class SupabaseClient:
             return None
 
     def update_section(self, section_id, title):
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -269,6 +223,7 @@ class SupabaseClient:
             return None
 
     def delete_section(self, section_id):
+        self._ensure_connection()
         if not self.conn:
             return False
         try:
@@ -281,6 +236,7 @@ class SupabaseClient:
             return False
 
     def get_section_by_id(self, section_id):
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -295,8 +251,7 @@ class SupabaseClient:
 
     # Lessons operations
     def get_lessons_by_section(self, section_id):
-        if self.use_temp_data:
-            return [l for l in self.temp_lessons if l['section_id'] == section_id]
+        self._ensure_connection()
         if not self.conn:
             return []
         try:
@@ -310,11 +265,7 @@ class SupabaseClient:
             return []
 
     def get_lesson_by_id(self, lesson_id):
-        if self.use_temp_data:
-            for lesson in self.temp_lessons:
-                if lesson['id'] == lesson_id:
-                    return lesson
-            return None
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -328,6 +279,7 @@ class SupabaseClient:
             return None
 
     def create_lesson(self, section_id, title, order_index, content=None):
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -347,6 +299,7 @@ class SupabaseClient:
             return None
 
     def update_lesson(self, lesson_id, title=None, content=None):
+        self._ensure_connection()
         if not self.conn:
             return None
         try:
@@ -379,6 +332,7 @@ class SupabaseClient:
             return None
 
     def delete_lesson(self, lesson_id):
+        self._ensure_connection()
         if not self.conn:
             return False
         try:
