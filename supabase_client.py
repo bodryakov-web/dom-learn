@@ -3,6 +3,7 @@ import logging
 import psycopg2
 from psycopg2.extras import RealDictCursor
 import json
+from temp_data import TEMP_LEVELS, TEMP_SECTIONS, TEMP_LESSONS
 
 logger = logging.getLogger(__name__)
 
@@ -10,16 +11,41 @@ class SupabaseClient:
     def __init__(self):
         self.db_url = os.environ.get("DATABASE_URL", "")
         self.conn = None
+        self.use_temp_data = False
         if self.db_url:
             try:
-                self.conn = psycopg2.connect(self.db_url, cursor_factory=RealDictCursor)
+                # Try with sslmode parameter for Supabase
+                connection_params = {
+                    'dsn': self.db_url,
+                    'cursor_factory': RealDictCursor,
+                    'sslmode': 'require',
+                    'connect_timeout': 10
+                }
+                self.conn = psycopg2.connect(**connection_params)
                 self.conn.autocommit = True
                 logger.info("Database connected successfully")
                 self._create_tables()
             except Exception as e:
                 logger.error(f"Failed to connect to database: {e}")
+                # Try without SSL as fallback
+                try:
+                    connection_params = {
+                        'dsn': self.db_url,
+                        'cursor_factory': RealDictCursor,
+                        'connect_timeout': 10
+                    }
+                    self.conn = psycopg2.connect(**connection_params)
+                    self.conn.autocommit = True
+                    logger.info("Database connected successfully (fallback)")
+                    self._create_tables()
+                except Exception as e2:
+                    logger.error(f"Fallback connection also failed: {e2}")
+                    logger.info("Switching to temporary data mode")
+                    self.use_temp_data = True
         else:
             logger.warning("DATABASE_URL not found in environment variables")
+            logger.info("Using temporary data mode")
+            self.use_temp_data = True
 
     def _create_tables(self):
         """Create tables if they don't exist"""
@@ -75,6 +101,8 @@ class SupabaseClient:
 
     # Levels operations
     def get_all_levels(self):
+        if self.use_temp_data:
+            return TEMP_LEVELS
         if not self.conn:
             return []
         try:
@@ -133,6 +161,8 @@ class SupabaseClient:
 
     # Sections operations
     def get_sections_by_level(self, level_id):
+        if self.use_temp_data:
+            return [s for s in TEMP_SECTIONS if s['level_id'] == level_id]
         if not self.conn:
             return []
         try:
@@ -204,6 +234,8 @@ class SupabaseClient:
 
     # Lessons operations
     def get_lessons_by_section(self, section_id):
+        if self.use_temp_data:
+            return [l for l in TEMP_LESSONS if l['section_id'] == section_id]
         if not self.conn:
             return []
         try:
@@ -217,6 +249,11 @@ class SupabaseClient:
             return []
 
     def get_lesson_by_id(self, lesson_id):
+        if self.use_temp_data:
+            for lesson in TEMP_LESSONS:
+                if lesson['id'] == lesson_id:
+                    return lesson
+            return None
         if not self.conn:
             return None
         try:
