@@ -19,32 +19,45 @@ class SupabaseClient:
         self.next_id = 100  # Начальный ID для новых записей
         if self.db_url:
             try:
-                # Try with sslmode parameter for Supabase
+                # Parse URL to add SSL parameters properly
+                import urllib.parse
+                parsed = urllib.parse.urlparse(self.db_url)
+                
+                # Construct connection parameters manually
                 connection_params = {
-                    'dsn': self.db_url,
+                    'host': parsed.hostname,
+                    'port': parsed.port or 5432,
+                    'database': parsed.path.lstrip('/') or 'postgres',
+                    'user': parsed.username,
+                    'password': parsed.password,
                     'cursor_factory': RealDictCursor,
                     'sslmode': 'require',
-                    'connect_timeout': 10
+                    'connect_timeout': 15
                 }
+                
                 self.conn = psycopg2.connect(**connection_params)
                 self.conn.autocommit = True
                 logger.info("Database connected successfully")
                 self._create_tables()
             except Exception as e:
                 logger.error(f"Failed to connect to database: {e}")
-                # Try without SSL as fallback
+                # Try with DSN string and different SSL settings
                 try:
-                    connection_params = {
-                        'dsn': self.db_url,
-                        'cursor_factory': RealDictCursor,
-                        'connect_timeout': 10
-                    }
-                    self.conn = psycopg2.connect(**connection_params)
+                    if '?' in self.db_url:
+                        dsn = self.db_url
+                    else:
+                        dsn = self.db_url + '?sslmode=require'
+                    
+                    self.conn = psycopg2.connect(
+                        dsn=dsn,
+                        cursor_factory=RealDictCursor,
+                        connect_timeout=15
+                    )
                     self.conn.autocommit = True
-                    logger.info("Database connected successfully (fallback)")
+                    logger.info("Database connected successfully (DSN method)")
                     self._create_tables()
                 except Exception as e2:
-                    logger.error(f"Fallback connection also failed: {e2}")
+                    logger.error(f"DSN connection also failed: {e2}")
                     logger.info("Switching to temporary data mode")
                     self.use_temp_data = True
                     self._init_temp_data()
