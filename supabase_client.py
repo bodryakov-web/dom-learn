@@ -12,6 +12,11 @@ class SupabaseClient:
         self.db_url = os.environ.get("DATABASE_URL", "")
         self.conn = None
         self.use_temp_data = False
+        # Копии для редактирования во временном режиме
+        self.temp_levels = []
+        self.temp_sections = []
+        self.temp_lessons = []
+        self.next_id = 100  # Начальный ID для новых записей
         if self.db_url:
             try:
                 # Try with sslmode parameter for Supabase
@@ -42,10 +47,19 @@ class SupabaseClient:
                     logger.error(f"Fallback connection also failed: {e2}")
                     logger.info("Switching to temporary data mode")
                     self.use_temp_data = True
+                    self._init_temp_data()
         else:
             logger.warning("DATABASE_URL not found in environment variables")
             logger.info("Using temporary data mode")
             self.use_temp_data = True
+            self._init_temp_data()
+    
+    def _init_temp_data(self):
+        """Initialize editable copies of temporary data"""
+        import copy
+        self.temp_levels = copy.deepcopy(TEMP_LEVELS)
+        self.temp_sections = copy.deepcopy(TEMP_SECTIONS)
+        self.temp_lessons = copy.deepcopy(TEMP_LESSONS)
 
     def _create_tables(self):
         """Create tables if they don't exist"""
@@ -102,7 +116,7 @@ class SupabaseClient:
     # Levels operations
     def get_all_levels(self):
         if self.use_temp_data:
-            return TEMP_LEVELS
+            return self.temp_levels
         if not self.conn:
             return []
         try:
@@ -116,6 +130,15 @@ class SupabaseClient:
             return []
 
     def create_level(self, title, order_index):
+        if self.use_temp_data:
+            new_level = {
+                "id": self.next_id,
+                "title": title,
+                "order_index": order_index
+            }
+            self.temp_levels.append(new_level)
+            self.next_id += 1
+            return new_level
         if not self.conn:
             return None
         try:
@@ -132,6 +155,12 @@ class SupabaseClient:
             return None
 
     def update_level(self, level_id, title):
+        if self.use_temp_data:
+            for level in self.temp_levels:
+                if level['id'] == level_id:
+                    level['title'] = title
+                    return level
+            return None
         if not self.conn:
             return None
         try:
@@ -148,6 +177,15 @@ class SupabaseClient:
             return None
 
     def delete_level(self, level_id):
+        if self.use_temp_data:
+            # Удаляем уровень
+            self.temp_levels = [l for l in self.temp_levels if l['id'] != level_id]
+            # Удаляем связанные разделы
+            self.temp_sections = [s for s in self.temp_sections if s['level_id'] != level_id]
+            # Удаляем связанные уроки
+            section_ids = [s['id'] for s in self.temp_sections if s['level_id'] == level_id]
+            self.temp_lessons = [l for l in self.temp_lessons if l['section_id'] not in section_ids]
+            return True
         if not self.conn:
             return False
         try:
@@ -162,7 +200,7 @@ class SupabaseClient:
     # Sections operations
     def get_sections_by_level(self, level_id):
         if self.use_temp_data:
-            return [s for s in TEMP_SECTIONS if s['level_id'] == level_id]
+            return [s for s in self.temp_sections if s['level_id'] == level_id]
         if not self.conn:
             return []
         try:
@@ -176,6 +214,16 @@ class SupabaseClient:
             return []
 
     def create_section(self, level_id, title, order_index):
+        if self.use_temp_data:
+            new_section = {
+                "id": self.next_id,
+                "level_id": level_id,
+                "title": title,
+                "order_index": order_index
+            }
+            self.temp_sections.append(new_section)
+            self.next_id += 1
+            return new_section
         if not self.conn:
             return None
         try:
@@ -235,7 +283,7 @@ class SupabaseClient:
     # Lessons operations
     def get_lessons_by_section(self, section_id):
         if self.use_temp_data:
-            return [l for l in TEMP_LESSONS if l['section_id'] == section_id]
+            return [l for l in self.temp_lessons if l['section_id'] == section_id]
         if not self.conn:
             return []
         try:
@@ -250,7 +298,7 @@ class SupabaseClient:
 
     def get_lesson_by_id(self, lesson_id):
         if self.use_temp_data:
-            for lesson in TEMP_LESSONS:
+            for lesson in self.temp_lessons:
                 if lesson['id'] == lesson_id:
                     return lesson
             return None
