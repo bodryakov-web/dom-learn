@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Админ-панель - JavaScript DOM</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <h1 class="text-2xl font-bold text-blue-600">Админ-панель</h1>
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('index') }}" class="text-gray-600 hover:text-blue-600">
+                        <i data-feather="external-link" class="w-5 h-5"></i>
+                    </a>
+                    <a href="{{ url_for('admin_logout') }}" class="text-gray-600 hover:text-red-600">
+                        <i data-feather="log-out" class="w-5 h-5"></i>
+                    </a>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <!-- Add Level -->
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <h2 class="text-xl font-bold mb-4">Добавить уровень</h2>
+            <form method="POST" action="{{ url_for('create_level') }}" class="flex items-center space-x-4">
+                <input type="text" name="title" placeholder="Название уровня" required
+                       class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 flex items-center">
+                    <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+                    Добавить
+                </button>
+            </form>
+        </div>
+
+        <!-- Levels -->
+        {% for level in levels %}
+            <div class="bg-white rounded-xl shadow-lg mb-8 overflow-hidden">
+                <!-- Level Header -->
+                <div class="bg-gradient-to-r from-blue-600 to-blue-700 text-white p-6">
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <h2 class="text-2xl font-bold">Уровень {{ level.order_index }}: {{ level.title }}</h2>
+                            <p class="text-blue-100 mt-1">
+                                {{ level.sections|length }} {% if level.sections|length == 1 %}раздел{% elif level.sections|length in [2, 3, 4] %}раздела{% else %}разделов{% endif %}
+                            </p>
+                        </div>
+                        <div class="flex items-center space-x-2">
+                            <button onclick="editLevel({{ level.id }}, '{{ level.title }}')" 
+                                    class="text-white hover:text-blue-200 p-2">
+                                <i data-feather="edit" class="w-5 h-5"></i>
+                            </button>
+                            <form method="POST" action="{{ url_for('delete_level', level_id=level.id) }}" class="inline">
+                                <button type="submit" class="text-white hover:text-red-200 p-2">
+                                    <i data-feather="trash-2" class="w-5 h-5"></i>
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="p-6">
+                    <!-- Add Section -->
+                    <div class="mb-6 p-4 bg-gray-50 rounded-lg">
+                        <h3 class="font-semibold mb-3">Добавить раздел</h3>
+                        <form method="POST" action="{{ url_for('create_section', level_id=level.id) }}" class="flex items-center space-x-4">
+                            <input type="text" name="title" placeholder="Название раздела" required
+                                   class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <button type="submit" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
+                                <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+                                Добавить
+                            </button>
+                        </form>
+                    </div>
+
+                    <!-- Sections -->
+                    {% for section in level.sections %}
+                        <div class="border rounded-lg mb-4">
+                            <div class="bg-gray-50 p-4 border-b">
+                                <div class="flex items-center justify-between">
+                                    <h3 class="font-semibold">{{ section.order_index }}. {{ section.title }}</h3>
+                                    <div class="flex items-center space-x-2">
+                                        <button onclick="editSection({{ section.id }}, '{{ section.title }}')" 
+                                                class="text-gray-600 hover:text-blue-600 p-1">
+                                            <i data-feather="edit" class="w-4 h-4"></i>
+                                        </button>
+                                        <form method="POST" action="{{ url_for('delete_section', section_id=section.id) }}" class="inline">
+                                            <button type="submit" class="text-gray-600 hover:text-red-600 p-1">
+                                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                                            </button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="p-4">
+                                <!-- Add Lesson -->
+                                <div class="mb-4 p-3 bg-blue-50 rounded-lg">
+                                    <h4 class="font-medium mb-2">Добавить урок</h4>
+                                    <form method="POST" action="{{ url_for('create_lesson', section_id=section.id) }}" class="flex items-center space-x-3">
+                                        <input type="text" name="title" placeholder="Название урока" required
+                                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        <button type="submit" class="bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 flex items-center">
+                                            <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+                                            Добавить
+                                        </button>
+                                    </form>
+                                </div>
+
+                                <!-- Lessons -->
+                                {% if section.lessons %}
+                                    <div class="space-y-2">
+                                        {% for lesson in section.lessons %}
+                                            <div class="flex items-center justify-between p-3 bg-white border rounded-lg">
+                                                <span>{{ lesson.order_index }}. {{ lesson.title }}</span>
+                                                <div class="flex items-center space-x-2">
+                                                    <a href="{{ url_for('edit_lesson', lesson_id=lesson.id) }}" 
+                                                       class="text-gray-600 hover:text-blue-600 p-1">
+                                                        <i data-feather="edit" class="w-4 h-4"></i>
+                                                    </a>
+                                                    <form method="POST" action="{{ url_for('delete_lesson', lesson_id=lesson.id) }}" class="inline">
+                                                        <button type="submit" class="text-gray-600 hover:text-red-600 p-1">
+                                                            <i data-feather="trash-2" class="w-4 h-4"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </div>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <p class="text-gray-500 text-center py-4">Нет уроков</p>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Edit Modals -->
+    <div id="editLevelModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Редактировать уровень</h3>
+            <form id="editLevelForm" method="POST">
+                <input type="text" id="editLevelTitle" name="title" required
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditLevel()" class="px-4 py-2 border rounded-lg">Отмена</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div id="editSectionModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Редактировать раздел</h3>
+            <form id="editSectionForm" method="POST">
+                <input type="text" id="editSectionTitle" name="title" required
+                       class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 mb-4">
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeEditSection()" class="px-4 py-2 border rounded-lg">Отмена</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Сохранить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Feather icons
+        feather.replace();
+
+        function editLevel(id, title) {
+            document.getElementById('editLevelTitle').value = title;
+            document.getElementById('editLevelForm').action = `/bod/update_level/${id}`;
+            document.getElementById('editLevelModal').classList.remove('hidden');
+        }
+
+        function closeEditLevel() {
+            document.getElementById('editLevelModal').classList.add('hidden');
+        }
+
+        function editSection(id, title) {
+            document.getElementById('editSectionTitle').value = title;
+            document.getElementById('editSectionForm').action = `/bod/update_section/${id}`;
+            document.getElementById('editSectionModal').classList.remove('hidden');
+        }
+
+        function closeEditSection() {
+            document.getElementById('editSectionModal').classList.add('hidden');
+        }
+
+        // Close modals on background click
+        document.getElementById('editLevelModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditLevel();
+        });
+
+        document.getElementById('editSectionModal').addEventListener('click', function(e) {
+            if (e.target === this) closeEditSection();
+        });
+    </script>
+</body>
+</html>

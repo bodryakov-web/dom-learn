@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Редактирование урока - Админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- TinyMCE -->
+    <script src="https://cdn.tiny.cloud/1/no-api-key/tinymce/6/tinymce.min.js" referrerpolicy="origin"></script>
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
+</head>
+<body class="bg-gray-100 min-h-screen">
+    <!-- Header -->
+    <header class="bg-white shadow-sm border-b">
+        <div class="container mx-auto px-4 py-4">
+            <div class="flex items-center justify-between">
+                <div class="flex items-center space-x-4">
+                    <a href="{{ url_for('admin_dashboard') }}" class="text-gray-600 hover:text-blue-600">
+                        <i data-feather="arrow-left" class="w-5 h-5"></i>
+                    </a>
+                    <h1 class="text-2xl font-bold text-blue-600">Редактирование урока</h1>
+                </div>
+                <a href="{{ url_for('admin_logout') }}" class="text-gray-600 hover:text-red-600">
+                    <i data-feather="log-out" class="w-5 h-5"></i>
+                </a>
+            </div>
+        </div>
+    </header>
+
+    <div class="container mx-auto px-4 py-8">
+        <form method="POST" action="{{ url_for('update_lesson', lesson_id=lesson.id) }}" class="space-y-8">
+            <!-- Lesson Title -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Основная информация</h2>
+                <div>
+                    <label for="title" class="block text-sm font-medium text-gray-700 mb-2">Название урока</label>
+                    <input type="text" id="title" name="title" value="{{ lesson.title }}" required
+                           class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                </div>
+            </div>
+
+            <!-- Theory Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <h2 class="text-xl font-bold mb-4">Теоретический материал</h2>
+                <div>
+                    <label for="theory" class="block text-sm font-medium text-gray-700 mb-2">Содержание</label>
+                    <textarea id="theory" name="theory" class="w-full">{{ lesson.content.theory if lesson.content and lesson.content.theory else '' }}</textarea>
+                </div>
+            </div>
+
+            <!-- Quiz Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Тестовые вопросы</h2>
+                    <button type="button" onclick="addQuizQuestion()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
+                        <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+                        Добавить вопрос
+                    </button>
+                </div>
+                <div id="quiz-container">
+                    {% if lesson.content and lesson.content.quiz %}
+                        {% for quiz in lesson.content.quiz %}
+                            <div class="quiz-question border rounded-lg p-4 mb-4" data-index="{{ loop.index0 }}">
+                                <div class="flex justify-between items-start mb-3">
+                                    <h3 class="font-semibold">Вопрос {{ loop.index }}</h3>
+                                    <button type="button" onclick="removeQuizQuestion(this)" class="text-red-600 hover:text-red-800">
+                                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                <div class="space-y-3">
+                                    <div>
+                                        <label class="block text-sm font-medium text-gray-700 mb-1">Вопрос</label>
+                                        <input type="text" name="quiz_{{ loop.index0 }}_question" value="{{ quiz.question }}" required
+                                               class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                    </div>
+                                    {% for option in quiz.options %}
+                                        <div class="flex items-center space-x-3">
+                                            <input type="radio" name="quiz_{{ loop.index0 }}_correct" value="{{ loop.index0 }}" 
+                                                   {% if quiz.correct_answer == loop.index0 %}checked{% endif %}>
+                                            <input type="text" name="quiz_{{ loop.index0 }}_option_{{ loop.index0 }}" value="{{ option }}" placeholder="Вариант {{ loop.index }}" required
+                                                   class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Tasks Section -->
+            <div class="bg-white rounded-xl shadow-lg p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h2 class="text-xl font-bold">Практические задания</h2>
+                    <button type="button" onclick="addTask()" class="bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 flex items-center">
+                        <i data-feather="plus" class="w-4 h-4 mr-2"></i>
+                        Добавить задание
+                    </button>
+                </div>
+                <div id="tasks-container">
+                    {% if lesson.content and lesson.content.tasks %}
+                        {% for task in lesson.content.tasks %}
+                            <div class="task-item border rounded-lg p-4 mb-4" data-index="{{ loop.index0 }}">
+                                <div class="flex justify-between items-start mb-3">
+                                    <h3 class="font-semibold">Задание {{ loop.index }}</h3>
+                                    <button type="button" onclick="removeTask(this)" class="text-red-600 hover:text-red-800">
+                                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                                    </button>
+                                </div>
+                                <textarea name="task_{{ loop.index0 }}" rows="4" placeholder="Описание задания" required
+                                          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">{{ task }}</textarea>
+                            </div>
+                        {% endfor %}
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Save Button -->
+            <div class="flex justify-end space-x-4">
+                <a href="{{ url_for('admin_dashboard') }}" class="px-6 py-3 border border-gray-300 rounded-lg hover:bg-gray-50">
+                    Отмена
+                </a>
+                <button type="submit" class="px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700">
+                    Сохранить урок
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Image Upload Modal -->
+    <div id="imageUploadModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+        <div class="bg-white rounded-lg p-6 w-full max-w-md">
+            <h3 class="text-lg font-bold mb-4">Загрузить изображение</h3>
+            <form id="imageUploadForm" enctype="multipart/form-data">
+                <input type="file" id="imageFile" accept=".png,.jpg,.jpeg,.webp,.svg" required
+                       class="w-full px-3 py-2 border rounded-lg mb-4">
+                <div class="text-sm text-gray-600 mb-4">
+                    Поддерживаемые форматы: PNG, JPG, WEBP, SVG. Максимальный размер: 5MB.
+                </div>
+                <div class="flex justify-end space-x-3">
+                    <button type="button" onclick="closeImageUpload()" class="px-4 py-2 border rounded-lg">Отмена</button>
+                    <button type="submit" class="px-4 py-2 bg-blue-600 text-white rounded-lg">Загрузить</button>
+                </div>
+            </form>
+            <div id="imageUploadProgress" class="hidden mt-4">
+                <div class="text-sm text-gray-600 mb-2">Загрузка...</div>
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div class="bg-blue-600 h-2 rounded-full" style="width: 0%" id="imageUploadBar"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
+    <script>
+        // Initialize Feather icons
+        feather.replace();
+
+        // Initialize TinyMCE
+        tinymce.init({
+            selector: '#theory',
+            height: 500,
+            menubar: true,
+            plugins: [
+                'advlist', 'autolink', 'lists', 'link', 'image', 'charmap', 'preview',
+                'anchor', 'searchreplace', 'visualblocks', 'code', 'fullscreen',
+                'insertdatetime', 'media', 'table', 'help', 'wordcount', 'codesample'
+            ],
+            toolbar: 'undo redo | blocks | ' +
+                'bold italic forecolor backcolor | alignleft aligncenter ' +
+                'alignright alignjustify | bullist numlist outdent indent | ' +
+                'removeformat | image | codesample | help',
+            content_style: 'body { font-family: -apple-system, BlinkMacSystemFont, San Francisco, Segoe UI, Roboto, Helvetica Neue, sans-serif; font-size: 14px }',
+            codesample_languages: [
+                {text: 'HTML/XML', value: 'markup'},
+                {text: 'JavaScript', value: 'javascript'},
+                {text: 'CSS', value: 'css'},
+                {text: 'JSON', value: 'json'}
+            ],
+            images_upload_handler: function (blobInfo, progress) {
+                return new Promise((resolve, reject) => {
+                    const formData = new FormData();
+                    formData.append('file', blobInfo.blob(), blobInfo.filename());
+
+                    fetch('/bod/upload_image', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(result => {
+                        if (result.url) {
+                            resolve(result.url);
+                        } else {
+                            reject(result.error || 'Upload failed');
+                        }
+                    })
+                    .catch(error => {
+                        reject(error);
+                    });
+                });
+            }
+        });
+
+        let quizIndex = {{ lesson.content.quiz|length if lesson.content and lesson.content.quiz else 0 }};
+        let taskIndex = {{ lesson.content.tasks|length if lesson.content and lesson.content.tasks else 0 }};
+
+        function addQuizQuestion() {
+            const container = document.getElementById('quiz-container');
+            const questionDiv = document.createElement('div');
+            questionDiv.className = 'quiz-question border rounded-lg p-4 mb-4';
+            questionDiv.setAttribute('data-index', quizIndex);
+            
+            questionDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="font-semibold">Вопрос ${quizIndex + 1}</h3>
+                    <button type="button" onclick="removeQuizQuestion(this)" class="text-red-600 hover:text-red-800">
+                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Вопрос</label>
+                        <input type="text" name="quiz_${quizIndex}_question" required
+                               class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="radio" name="quiz_${quizIndex}_correct" value="0" checked>
+                        <input type="text" name="quiz_${quizIndex}_option_0" placeholder="Вариант 1" required
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="radio" name="quiz_${quizIndex}_correct" value="1">
+                        <input type="text" name="quiz_${quizIndex}_option_1" placeholder="Вариант 2" required
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="radio" name="quiz_${quizIndex}_correct" value="2">
+                        <input type="text" name="quiz_${quizIndex}_option_2" placeholder="Вариант 3" required
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                    <div class="flex items-center space-x-3">
+                        <input type="radio" name="quiz_${quizIndex}_correct" value="3">
+                        <input type="text" name="quiz_${quizIndex}_option_3" placeholder="Вариант 4" required
+                               class="flex-1 px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(questionDiv);
+            feather.replace();
+            quizIndex++;
+        }
+
+        function removeQuizQuestion(button) {
+            button.closest('.quiz-question').remove();
+            updateQuizIndices();
+        }
+
+        function updateQuizIndices() {
+            const questions = document.querySelectorAll('.quiz-question');
+            questions.forEach((question, index) => {
+                question.querySelector('h3').textContent = `Вопрос ${index + 1}`;
+            });
+        }
+
+        function addTask() {
+            const container = document.getElementById('tasks-container');
+            const taskDiv = document.createElement('div');
+            taskDiv.className = 'task-item border rounded-lg p-4 mb-4';
+            taskDiv.setAttribute('data-index', taskIndex);
+            
+            taskDiv.innerHTML = `
+                <div class="flex justify-between items-start mb-3">
+                    <h3 class="font-semibold">Задание ${taskIndex + 1}</h3>
+                    <button type="button" onclick="removeTask(this)" class="text-red-600 hover:text-red-800">
+                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </div>
+                <textarea name="task_${taskIndex}" rows="4" placeholder="Описание задания" required
+                          class="w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
+            `;
+            
+            container.appendChild(taskDiv);
+            feather.replace();
+            taskIndex++;
+        }
+
+        function removeTask(button) {
+            button.closest('.task-item').remove();
+            updateTaskIndices();
+        }
+
+        function updateTaskIndices() {
+            const tasks = document.querySelectorAll('.task-item');
+            tasks.forEach((task, index) => {
+                task.querySelector('h3').textContent = `Задание ${index + 1}`;
+            });
+        }
+    </script>
+</body>
+</html>

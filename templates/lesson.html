@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}{{ lesson.title }} - {{ section.title }} - JavaScript DOM{% endblock %}
+
+{% block content %}
+<div class="max-w-4xl mx-auto">
+    <!-- Lesson Header -->
+    <div class="bg-white rounded-xl shadow-lg mb-8">
+        <div class="border-b p-6">
+            <div class="flex items-center text-sm text-course-gray mb-4">
+                <a href="{{ url_for('index') }}" class="hover:text-course-blue">Курсы</a>
+                <span class="mx-2">/</span>
+                <a href="{{ url_for('level_page', level_order=level.order_index) }}" class="hover:text-course-blue">
+                    {{ level.title }}
+                </a>
+                <span class="mx-2">/</span>
+                <span>{{ section.title }}</span>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-900 mb-2">
+                Урок {{ lesson.order_index }}: {{ lesson.title }}
+            </h1>
+            <p class="text-course-gray">{{ section.title }}</p>
+        </div>
+    </div>
+
+    <!-- Lesson Content -->
+    <div class="bg-white rounded-xl shadow-lg mb-8">
+        {% if lesson.content %}
+            <!-- Theory Section -->
+            {% if lesson.content.theory %}
+                <div class="p-8 border-b">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Теория</h2>
+                    <div class="prose prose-lg max-w-none lesson-content">
+                        {{ lesson.content.theory|safe }}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Quiz Section -->
+            {% if lesson.content.quiz and lesson.content.quiz|length > 0 %}
+                <div class="p-8 border-b">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Тестирование</h2>
+                    <div id="quiz-container">
+                        {% for quiz in lesson.content.quiz %}
+                            <div class="quiz-question mb-8 p-6 bg-gray-50 rounded-lg" data-question="{{ loop.index0 }}">
+                                <h3 class="text-lg font-semibold mb-4">{{ loop.index }}. {{ quiz.question }}</h3>
+                                <div class="space-y-3">
+                                    {% for option in quiz.options %}
+                                        <label class="quiz-option flex items-center p-3 bg-white rounded-lg border cursor-pointer hover:bg-gray-50 transition-colors">
+                                            <input type="radio" name="question_{{ loop.index0 }}" value="{{ loop.index0 }}" class="mr-3">
+                                            <span>{{ option }}</span>
+                                        </label>
+                                    {% endfor %}
+                                </div>
+                                <div class="quiz-result mt-4 hidden">
+                                    <div class="quiz-feedback p-3 rounded-lg"></div>
+                                </div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Tasks Section -->
+            {% if lesson.content.tasks and lesson.content.tasks|length > 0 %}
+                <div class="p-8">
+                    <h2 class="text-2xl font-bold text-gray-900 mb-6">Практические задания</h2>
+                    <div class="space-y-6">
+                        {% for task in lesson.content.tasks %}
+                            <div class="task p-6 bg-blue-50 rounded-lg border-l-4 border-course-blue">
+                                <h3 class="font-semibold text-gray-900 mb-3">Задание {{ loop.index }}</h3>
+                                <div class="text-gray-700">{{ task|safe }}</div>
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            {% endif %}
+        {% else %}
+            <div class="p-8 text-center">
+                <div class="text-4xl mb-4">📝</div>
+                <h2 class="text-xl font-semibold text-gray-700 mb-2">Урок в разработке</h2>
+                <p class="text-course-gray">Содержимое урока еще готовится</p>
+            </div>
+        {% endif %}
+    </div>
+
+    <!-- Navigation -->
+    <div class="flex justify-between items-center bg-white rounded-xl shadow-lg p-6">
+        <div>
+            {% if prev_lesson %}
+                {% set section_slug = section.title|lower|replace(' ', '-')|replace('й', 'y')|replace('ь', '')|replace('ъ', '') %}
+                {% set prev_lesson_slug = prev_lesson.title|lower|replace(' ', '-')|replace('й', 'y')|replace('ь', '')|replace('ъ', '') %}
+                <a href="{{ url_for('lesson_page', level_order=level.order_index, section_order=section.order_index, section_name=section_slug, lesson_order=prev_lesson.order_index, lesson_name=prev_lesson_slug) }}" 
+                   class="inline-flex items-center px-4 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors">
+                    <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                    </svg>
+                    Предыдущий урок
+                </a>
+            {% endif %}
+        </div>
+
+        <div>
+            <a href="{{ url_for('level_page', level_order=level.order_index) }}#section-{{ section.order_index }}" 
+               class="inline-flex items-center px-4 py-2 bg-course-gray text-white rounded-lg hover:bg-gray-700 transition-colors mx-2">
+                К содержанию
+            </a>
+        </div>
+
+        <div>
+            {% if next_lesson %}
+                {% set section_slug = section.title|lower|replace(' ', '-')|replace('й', 'y')|replace('ь', '')|replace('ъ', '') %}
+                {% set next_lesson_slug = next_lesson.title|lower|replace(' ', '-')|replace('й', 'y')|replace('ь', '')|replace('ъ', '') %}
+                <a href="{{ url_for('lesson_page', level_order=level.order_index, section_order=section.order_index, section_name=section_slug, lesson_order=next_lesson.order_index, lesson_name=next_lesson_slug) }}" 
+                   class="inline-flex items-center px-4 py-2 bg-course-blue text-white rounded-lg hover:bg-blue-700 transition-colors">
+                    Следующий урок
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                    </svg>
+                </a>
+            {% else %}
+                <a href="{{ url_for('index') }}" 
+                   class="inline-flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors">
+                    К уровням
+                    <svg class="w-5 h-5 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 3l14 9-14 9V3z"></path>
+                    </svg>
+                </a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/quiz.js') }}"></script>
+<script>
+    // Initialize quiz functionality
+    if (typeof initQuiz === 'function') {
+        const quizData = {{ lesson.content.quiz|tojson if lesson.content and lesson.content.quiz else '[]' }};
+        initQuiz(quizData);
+    }
+
+    // Initialize syntax highlighting
+    if (typeof Prism !== 'undefined') {
+        Prism.highlightAll();
+    }
+</script>
+{% endblock %}

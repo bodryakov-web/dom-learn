@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Вход в админ-панель</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 min-h-screen flex items-center justify-center">
+    <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+        <div class="text-center mb-8">
+            <h1 class="text-2xl font-bold text-gray-900">Админ-панель</h1>
+            <p class="text-gray-600 mt-2">Вход в систему управления</p>
+        </div>
+
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        <form method="POST" action="{{ url_for('admin_login_post') }}">
+            <div class="mb-6">
+                <label for="login" class="block text-sm font-medium text-gray-700 mb-2">Логин</label>
+                <input type="text" id="login" name="login" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <div class="mb-6">
+                <label for="password" class="block text-sm font-medium text-gray-700 mb-2">Пароль</label>
+                <input type="password" id="password" name="password" required
+                       class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+            </div>
+
+            <div class="mb-6">
+                <label class="flex items-center">
+                    <input type="checkbox" name="remember" class="mr-2">
+                    <span class="text-sm text-gray-700">Запомнить меня (30 дней)</span>
+                </label>
+            </div>
+
+            <button type="submit" 
+                    class="w-full bg-blue-600 text-white py-2 px-4 rounded-lg hover:bg-blue-700 transition-colors font-medium">
+                Войти
+            </button>
+        </form>
+
+        <div class="mt-6 text-center">
+            <a href="{{ url_for('index') }}" class="text-blue-600 hover:text-blue-800 text-sm">
+                ← Вернуться на сайт
+            </a>
+        </div>
+    </div>
+
+    <script>
+        // Check if user wants to be remembered and restore login if available
+        window.addEventListener('load', function() {
+            const remembered = localStorage.getItem('admin_remember');
+            if (remembered) {
+                const checkbox = document.querySelector('input[name="remember"]');
+                if (checkbox) {
+                    checkbox.checked = true;
+                }
+            }
+        });
+
+        // Save remember preference
+        document.querySelector('form').addEventListener('submit', function() {
+            const checkbox = document.querySelector('input[name="remember"]');
+            if (checkbox.checked) {
+                localStorage.setItem('admin_remember', 'true');
+                localStorage.setItem('admin_remember_time', Date.now());
+            } else {
+                localStorage.removeItem('admin_remember');
+                localStorage.removeItem('admin_remember_time');
+            }
+        });
+    </script>
+</body>
+</html>
